@@ -38,6 +38,7 @@ func parseCommand(raw []byte) (*Message, error) {
 		rawStr = string(raw)
 		parts = strings.Split(rawStr, " ")
 	)
+	fmt.Println("len of parts:", len(parts))
 	if len(parts) < 2 {
 		// respond
 		log.Println("invalid command")
@@ -50,11 +51,12 @@ func parseCommand(raw []byte) (*Message, error) {
 	}
 	
 	if msg.Cmd == CMDSet {
-		if len(parts) == 4 {
+		if len(parts) != 4 {
 			return nil, errors.New("invalid SET command")
 		}
 		msg.Value = []byte(parts[2])
 		ttl, err := strconv.Atoi(parts[3])
+		fmt.Println("TTL:", ttl)
 		if err != nil {
 			return nil, errors.New("invalid TTL field")
 		}
