@@ -33,6 +33,19 @@ type Message struct {
 	TTL time.Duration
 }
 
+func(m *Message) ToBytes() []byte{
+	switch m.Cmd {
+	case CMDGet:
+		cmd := fmt.Sprintf("%s %s",m.Cmd, m.Key)
+		return []byte(cmd)
+	case CMDSet:
+		cmd := fmt.Sprintf("%s %s %s %d", m.Cmd, m.Key, m.Value, m.TTL)
+		return []byte(cmd)
+	default: 
+		panic("unknown command")
+	}
+}
+
 func parseCommand(raw []byte) (*Message, error) {
 	var (
 		rawStr = string(raw)
