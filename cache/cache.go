@@ -50,6 +50,12 @@ func(c *Cache) Get(key []byte) ([]byte, error ) {
 func (c *Cache) Set(key, value []byte, ttl time.Duration) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	
+	ticker := time.NewTicker(ttl)
+	go func() {
+		<- ticker.C 
+		delete(c.data, string(key))
+	}()
 
 	c.data[string(key)] = value
 
