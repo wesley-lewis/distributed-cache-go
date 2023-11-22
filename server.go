@@ -12,10 +12,14 @@ import (
 type ServerOpts struct {
 	ListenAddr string 
 	IsLeader bool
+	LeaderAddr string 
 }
 
 type Server struct {
 	ServerOpts
+
+	followers map[net.Conn] struct{}
+
 	cache cache.Cacher
 }
 
@@ -23,6 +27,8 @@ func NewServer(opts ServerOpts, c cache.Cacher ) *Server {
 	return &Server {
 		ServerOpts: opts,
 		cache: c,
+		// TODO: only allocate this when we are the leader
+		followers: make(map[net.Conn]struct{}),
 	}
 }
 
@@ -32,6 +38,18 @@ func(s *Server) Start() error {
 		return fmt.Errorf("listen error: %s", err.Error())
 	}
 	log.Printf("Server starting on port [%s]\n", s.ListenAddr)
+
+	if !s.IsLeader {
+		go func() {
+			conn, err := net.Dial("tcp", s.LeaderAddr)
+			fmt.Println("connected with leader:", s.LeaderAddr)
+			if err != nil {
+				log.Fatal("Couldn't connect to server\n")
+			}
+
+			s.handleConn(conn)
+		}()
+	}
 
 	for {
 		conn, err := ln.Accept()
@@ -44,12 +62,14 @@ func(s *Server) Start() error {
 }
 
 func (s *Server) handleConn(conn net.Conn) {
-	defer func() {
-		conn.Close()
-	}()
+	defer conn.Close()
 
+	if s.IsLeader {
+		s.followers[conn] = struct{}{}
+	}
 	buf := make([]byte, 2048)
 	
+	fmt.Println("connection made:", conn.RemoteAddr())
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
@@ -69,6 +89,8 @@ func(s *Server) handleCommand(conn net.Conn, rawCmd []byte) {
 		return 
 	}
 	
+	fmt.Printf("received command %s\n", msg.Cmd)
+
 	switch msg.Cmd {
 	case CMDSet: 
 		 err = s.handleSetCmd(conn, msg) 
@@ -90,7 +112,7 @@ func (s *Server)handleSetCmd(conn net.Conn, msg *Message) error {
 		return err
 	}
 
-	go s.sendToFollowers(context.TODO())
+	go s.sendToFollowers(context.TODO(), msg)
 	return nil
 }
 
@@ -102,6 +124,15 @@ func(s *Server) handleGetCmd(conn net.Conn, msg *Message) ([]byte, error) {
 	return value, nil
 }
 
-func(s *Server) sendToFollowers(ctx context.Context) error {
+func(s *Server) sendToFollowers(ctx context.Context, msg *Message) error {
+	for conn := range s.followers {
+		rawMsg := msg.ToBytes()
+		fmt.Println("forwarding", rawMsg, "to follower")
+		_, err := conn.Write(msg.ToBytes())
+		if err != nil {
+			fmt.Println("Write to follower failed")
+			continue
+		}
+	}
 	return nil	
 }
