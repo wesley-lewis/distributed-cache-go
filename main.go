@@ -2,8 +2,8 @@ package main
 
 import (
 	"net"
-	"time"
 	"log"
+	"time"
 
 	"github.com/wesley-lewis/distributed-cache/cache"
 )
@@ -16,7 +16,6 @@ func main() {
 	}
 
 	go func() {
-		for {
 			time.Sleep(time.Second * 2)
 			conn, err := net.Dial("tcp",":3000")
 			if err != nil {
@@ -28,7 +27,6 @@ func main() {
 				log.Fatal(err)
 			}
 			log.Printf("Wrote %d bytes\n", n)
-		}
 	}()
 	
 	server := NewServer(opts, cache.New())
