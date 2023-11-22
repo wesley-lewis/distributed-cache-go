@@ -1,12 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
-	"time"
-	"strconv"
 	"net"
-	"strings"
 
 	"github.com/wesley-lewis/distributed-cache/cache"
 )
@@ -51,48 +49,59 @@ func (s *Server) handleConn(conn net.Conn) {
 	}()
 
 	buf := make([]byte, 2048)
+	
 	for {
 		n, err := conn.Read(buf)
 		if err != nil {
 			log.Printf("conn read error: %s", err.Error())
 			break
 		}
-
+		
 		go s.handleCommand(conn, buf[:n])
 	}
 }
 
 func(s *Server) handleCommand(conn net.Conn, rawCmd []byte) {
-	rawStr := string(rawCmd)
-	parts := strings.Split(rawStr, " ")
-	if len(parts) == 0 {
+	msg, err := parseCommand(rawCmd)
+	if err != nil {
+		fmt.Println("failed to parse command", err)
 		// respond
-		log.Println("invalid command")
-		conn.Write([]byte("invalid command"))
+		return 
+	}
+	
+	switch msg.Cmd {
+	case CMDSet: 
+		 err = s.handleSetCmd(conn, msg) 
+	
+	case CMDGet: 
+		var value []byte
+		value, err = s.handleGetCmd(conn, msg)
+		conn.Write(value)
 	}
 
-	cmd := Command(parts[0])
-
-	if cmd == CMDSet {
-		if len(parts) != 4 {
-			// respond
-			log.Println("Invalid SET command")
-			return 
-		}
-		// TODO: Need to check the error
-		ttl, _ := strconv.Atoi(parts[3])
-		key := []byte(parts[1])		
-		value := []byte(parts[2])
-		TTL := time.Duration(ttl)
-
-		if err := s.handleSetCmd(conn, key, value, TTL); err != nil {
-			// respond	
-			return 
-		}
+	if err != nil {
+		fmt.Println("Failed to handle command:", err)
+		conn.Write([]byte(err.Error()))
 	}
 }
 
-func (s *Server) handleSetCmd(conn net.Conn, key, value []byte, ttl time.Duration) error {
-	
+func (s *Server)handleSetCmd(conn net.Conn, msg *Message) error {
+	if err := s.cache.Set(msg.Key, msg.Value, msg.TTL); err != nil {
+		return err
+	}
+
+	go s.sendToFollowers(context.TODO())
 	return nil
+}
+
+func(s *Server) handleGetCmd(conn net.Conn, msg *Message) ([]byte, error) {
+	value, err := s.cache.Get(msg.Key) 
+	if err != nil {
+		return nil, err
+	}
+	return value, nil
+}
+
+func(s *Server) sendToFollowers(ctx context.Context) error {
+	return nil	
 }
