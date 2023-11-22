@@ -43,7 +43,8 @@ func(c *Cache) Get(key []byte) ([]byte, error ) {
 	if !ok {
 		return nil, fmt.Errorf("Key %s doesn't exist", keyStr)
 	}
-
+	
+	fmt.Printf("GET %s: %s", keyStr, string(val))
 	return val, nil
 }
 
