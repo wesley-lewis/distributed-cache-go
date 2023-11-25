@@ -34,6 +34,8 @@ func main() {
 			SendCommand(client)
 			time.Sleep(time.Millisecond * 200)
 		}
+		client.Close()
+		time.Sleep(time.Second * 1)
 	}()
 	server := NewServer(opts, cache.New())
 	server.Start()
@@ -41,7 +43,7 @@ func main() {
 
 // Just for testing purposes
 func SendCommand(client *client.Client) {
-	_, err := client.Set(context.Background(), []byte("foo"), []byte("bar"))
+	_, err := client.Set(context.Background(), []byte("wes"), []byte("lew"), 10)
 	if err != nil {
 		log.Fatal(err)
 	}
