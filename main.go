@@ -2,23 +2,16 @@ package main
 
 import (
 	"flag"
-	// "net"
-	// "log"
+	"fmt"
+	"net"
+	"time"
 
 	"github.com/wesley-lewis/distributed-cache/cache"
+	"github.com/wesley-lewis/distributed-cache/client"
 )
 
 
 func main() {
-	// conn, err := net.Dial("tcp", ":3000")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// _, err = conn.Write([]byte("SET Foo Bar 40000000"))
-	// return 
 	var (
 		listenAddr = flag.String("listenaddr", ":3000", "listen address of the server")
 		leaderAddr = flag.String("leaderaddr", "", "listen address of the leader")
@@ -31,6 +24,32 @@ func main() {
 		LeaderAddr: *leaderAddr,
 	}
 
+	go func() {
+		time.Sleep(time.Second * 2)
+		for i:=0; i < 10; i++{
+			SendCommand()
+			time.Sleep(time.Millisecond * 200)
+		}
+		SendCommand()
+	}()
 	server := NewServer(opts, cache.New())
 	server.Start()
+}
+
+// Just for testing purposes
+func SendCommand() {
+	cmd := &CommandSet{
+		Key: []byte("foo"),
+		Value: []byte("bar"),
+		TTL: 0,
+	}
+
+	client, err := client.New(":3000", client.Options{})
+	conn, err := net.Dial("tcp", ":3000")
+	if err != nil {
+		panic(err)
+	}
+
+	n,_ := conn.Write(cmd.Bytes())
+	fmt.Printf("Wrote %d bytes\n", n)
 }
