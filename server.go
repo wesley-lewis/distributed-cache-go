@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log"
-	"time"
 	"net"
+	"time"
 
 	"github.com/wesley-lewis/distributed-cache/cache"
 	"github.com/wesley-lewis/distributed-cache/proto"
@@ -55,6 +56,10 @@ func (s *Server) handleConn(conn net.Conn) {
 	for {
 		cmd, err := proto.ParseCommand(conn)
 		if err != nil {
+			if err == io.EOF {
+				fmt.Println("connection closed:", conn.RemoteAddr())
+				break
+			}
 			log.Println("parse command error:", err)
 			break
 		}
