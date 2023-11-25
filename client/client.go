@@ -28,10 +28,11 @@ func New(endpoint string , opts Options) (*Client, error){
 	},nil
 }
 
-func(c *Client) Set(ctx context.Context, key, value []byte) (any, error) {
+func(c *Client) Set(ctx context.Context, key, value []byte, ttl int) (any, error) {
 	cmd := &proto.CommandSet {
 		Key: key,
 		Value: value,
+		TTL: ttl,
 	}
 
 	_, err := c.conn.Write(cmd.Bytes())
