@@ -1,9 +1,9 @@
 package main
 
 import (
+	"context"
 	"flag"
-	"fmt"
-	"net"
+	"log"
 	"time"
 
 	"github.com/wesley-lewis/distributed-cache/cache"
@@ -26,30 +26,23 @@ func main() {
 
 	go func() {
 		time.Sleep(time.Second * 2)
+		client, err := client.New(":3000", client.Options{})
+		if err != nil {
+			panic(err)
+		}
 		for i:=0; i < 10; i++{
-			SendCommand()
+			SendCommand(client)
 			time.Sleep(time.Millisecond * 200)
 		}
-		SendCommand()
 	}()
 	server := NewServer(opts, cache.New())
 	server.Start()
 }
 
 // Just for testing purposes
-func SendCommand() {
-	cmd := &CommandSet{
-		Key: []byte("foo"),
-		Value: []byte("bar"),
-		TTL: 0,
-	}
-
-	client, err := client.New(":3000", client.Options{})
-	conn, err := net.Dial("tcp", ":3000")
+func SendCommand(client *client.Client) {
+	_, err := client.Set(context.Background(), []byte("foo"), []byte("bar"))
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
-
-	n,_ := conn.Write(cmd.Bytes())
-	fmt.Printf("Wrote %d bytes\n", n)
 }
