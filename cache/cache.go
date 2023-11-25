@@ -44,7 +44,6 @@ func(c *Cache) Get(key []byte) ([]byte, error ) {
 		return nil, fmt.Errorf("Key %s doesn't exist", keyStr)
 	}
 	
-	fmt.Printf("GET %s: %s", keyStr, string(val))
 	return val, nil
 }
 
@@ -52,12 +51,14 @@ func (c *Cache) Set(key, value []byte, ttl time.Duration) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	
-	go func() {
-		<- time.After(ttl)
-		delete(c.data, string(key))
-	}()
-
 	c.data[string(key)] = value
-	fmt.Printf("SET %s to %s\n", string(key), string(value))
+
+	if ttl > 0 {
+		go func() {
+			<- time.After(ttl)
+			delete(c.data, string(key))
+		}()
+	}
+
 	return nil
 }

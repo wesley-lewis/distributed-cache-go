@@ -1,12 +1,13 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
+	"time"
 	"net"
 
 	"github.com/wesley-lewis/distributed-cache/cache"
+	"github.com/wesley-lewis/distributed-cache/proto"
 )
 
 type ServerOpts struct {
@@ -18,8 +19,6 @@ type ServerOpts struct {
 type Server struct {
 	ServerOpts
 
-	followers map[net.Conn] struct{}
-
 	cache cache.Cacher
 }
 
@@ -28,7 +27,6 @@ func NewServer(opts ServerOpts, c cache.Cacher ) *Server {
 		ServerOpts: opts,
 		cache: c,
 		// TODO: only allocate this when we are the leader
-		followers: make(map[net.Conn]struct{}),
 	}
 }
 
@@ -38,18 +36,6 @@ func(s *Server) Start() error {
 		return fmt.Errorf("listen error: %s", err.Error())
 	}
 	log.Printf("Server starting on port [%s]\n", s.ListenAddr)
-
-	if !s.IsLeader {
-		go func() {
-			conn, err := net.Dial("tcp", s.LeaderAddr)
-			fmt.Println("connected with leader:", s.LeaderAddr)
-			if err != nil {
-				log.Fatal("Couldn't connect to server\n")
-			}
-
-			s.handleConn(conn)
-		}()
-	}
 
 	for {
 		conn, err := ln.Accept()
@@ -63,76 +49,34 @@ func(s *Server) Start() error {
 
 func (s *Server) handleConn(conn net.Conn) {
 	defer conn.Close()
-
-	if s.IsLeader {
-		s.followers[conn] = struct{}{}
-	}
-	buf := make([]byte, 2048)
 	
 	fmt.Println("connection made:", conn.RemoteAddr())
+
 	for {
-		n, err := conn.Read(buf)
+		cmd, err := proto.ParseCommand(conn)
 		if err != nil {
-			log.Printf("conn read error: %s", err.Error())
+			log.Println("parse command error:", err)
 			break
 		}
+		go s.handleCommand(conn, cmd)
+	}
+}
+
+func(s *Server) handleCommand(conn net.Conn, cmd any) {
+	switch v := cmd.(type) {
+		case *proto.CommandSet:
+		s.handleSetCommand(conn, v)
 		
-		go s.handleCommand(conn, buf[:n])
+		case *proto.CommandGet:
+			s.handleGetCommand(conn, v)
 	}
 }
 
-func(s *Server) handleCommand(conn net.Conn, rawCmd []byte) {
-	msg, err := parseCommand(rawCmd)
-	if err != nil {
-		fmt.Println("failed to parse command", err)
-		// respond
-		return 
-	}
-	
-	fmt.Printf("received command %s\n", msg.Cmd)
-
-	switch msg.Cmd {
-	case CMDSet: 
-		 err = s.handleSetCmd(conn, msg) 
-	
-	case CMDGet: 
-		var value []byte
-		value, err = s.handleGetCmd(conn, msg)
-		conn.Write(value)
-	}
-
-	if err != nil {
-		fmt.Println("Failed to handle command:", err)
-		conn.Write([]byte(err.Error()))
-	}
+func(s *Server) handleSetCommand(conn net.Conn, cmd *proto.CommandSet) error {
+	log.Printf("SET %s to %s", cmd.Key, cmd.Value)
+	return s.cache.Set(cmd.Key, cmd.Value, time.Duration(cmd.TTL))
 }
 
-func (s *Server)handleSetCmd(conn net.Conn, msg *Message) error {
-	if err := s.cache.Set(msg.Key, msg.Value, msg.TTL); err != nil {
-		return err
-	}
-
-	go s.sendToFollowers(context.TODO(), msg)
+func(s *Server) handleGetCommand(conn net.Conn, cmd *proto.CommandGet) error {
 	return nil
-}
-
-func(s *Server) handleGetCmd(conn net.Conn, msg *Message) ([]byte, error) {
-	value, err := s.cache.Get(msg.Key) 
-	if err != nil {
-		return nil, err
-	}
-	return value, nil
-}
-
-func(s *Server) sendToFollowers(ctx context.Context, msg *Message) error {
-	for conn := range s.followers {
-		rawMsg := msg.ToBytes()
-		fmt.Println("forwarding", rawMsg, "to follower")
-		_, err := conn.Write(msg.ToBytes())
-		if err != nil {
-			fmt.Println("Write to follower failed")
-			continue
-		}
-	}
-	return nil	
 }
