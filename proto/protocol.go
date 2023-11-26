@@ -17,6 +17,8 @@ func(s Status) String() string {
 		return "ERR"
 	case StatusOK:
 		return "OK"
+	case StatusKeyNotFound:
+		return "KEYNOTFOUND"
 	default:
 		return "NONE"
 	}
@@ -26,6 +28,7 @@ const (
 	StatusNone Status = iota
 	StatusOK 
 	StatusError
+	StatusKeyNotFound
 )
 
 const (

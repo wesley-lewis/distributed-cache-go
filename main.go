@@ -31,6 +31,14 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+
+		resp, err := client.Get(context.Background(), []byte("foo"))
+		if err != nil {
+			log.Printf("Error: %s", err)
+		}
+
+		fmt.Println(resp)
+
 		err = client.Set(context.Background(), []byte("foo"), []byte("bar"), 0)
 		if err != nil {
 			log.Fatal(err)

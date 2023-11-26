@@ -109,7 +109,7 @@ func(s *Server) handleGetCommand(conn net.Conn, cmd *proto.CommandGet)  error {
 
 	value, err := s.cache.Get(cmd.Key)
 	if err != nil {
-		resp.Status = proto.StatusError
+		resp.Status = proto.StatusKeyNotFound
 		_, err := conn.Write(resp.Bytes())
 		return err
 	}

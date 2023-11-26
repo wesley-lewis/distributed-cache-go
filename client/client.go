@@ -45,7 +45,7 @@ func(c *Client) Get(ctx context.Context, key []byte) ([]byte, error) {
 	}
 
 	if resp.Status != proto.StatusOK {
-		return nil, fmt.Errorf("server responed with non OK status [%s]", string(resp.Status))
+		return nil, fmt.Errorf("[%s]\n", resp.Status.String())
 	}
 
 	return  resp.Value, nil
