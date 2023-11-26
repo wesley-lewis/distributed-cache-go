@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"time"
 
@@ -27,7 +25,7 @@ func main() {
 		LeaderAddr: *leaderAddr,
 	}
 
-	go multipleClients()
+	// go multipleClients()
 	server := NewServer(opts, cache.New())
 	server.Start()
 }
@@ -69,3 +67,4 @@ func multipleClients() {
 		}()
 	}
 }
+

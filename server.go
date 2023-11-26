@@ -36,6 +36,17 @@ func(s *Server) Start() error {
 	if err != nil {
 		return fmt.Errorf("listen error: %s", err.Error())
 	}
+
+	if !s.IsLeader && len(s.LeaderAddr) != 0 {
+		go func() {
+			err := s.dialLeader()
+			if err != nil {
+				log.Println(err)
+			}
+		}()
+		
+	}
+	
 	log.Printf("Server starting on port [%s]\n", s.ListenAddr)
 
 	for {
@@ -46,6 +57,16 @@ func(s *Server) Start() error {
 		}
 		go s.handleConn(conn)
 	}
+}
+
+func(s *Server) dialLeader() error{
+	conn, err := net.Dial("tcp", s.LeaderAddr)
+	if err != nil {
+		return fmt.Errorf("Failed to dial leader [%s]", s.LeaderAddr)
+	}
+	log.Println("connected to leader:",s.LeaderAddr)
+	s.handleConn(conn)
+	return nil
 }
 
 /// handleConn first parses the command i.e. the data passed in through the connection 
