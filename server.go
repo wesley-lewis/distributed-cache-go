@@ -59,7 +59,7 @@ func (s *Server) handleConn(conn net.Conn) {
 		cmd, err := proto.ParseCommand(conn)
 		if err != nil {
 			if err == io.EOF {
-				fmt.Println("connection closed:", conn.RemoteAddr())
+				// fmt.Println("connection closed:", conn.RemoteAddr())
 				break
 			}
 			log.Println("parse command error:", err)

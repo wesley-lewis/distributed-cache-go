@@ -32,15 +32,10 @@ func main() {
 	server.Start()
 }
 
-func randomBytes(n int) []byte {
-	buf := make([]byte, n)
-	io.ReadFull(rand.Reader, buf)
-	return buf
-}
-
 func multipleClients() {
 	time.Sleep(time.Second * 2)
 	for i := 0; i < 1000; i++ {
+		tmp := i
 		go func() {
 			client, err := client.New(":3000", client.Options{})
 			if err != nil {
@@ -48,8 +43,8 @@ func multipleClients() {
 			}
 
 			var (
-				key = randomBytes(10)
-				val = randomBytes(10)
+				key = []byte(fmt.Sprintf("key_%d", tmp))
+				val = []byte(fmt.Sprintf("value_%d",tmp))
 			)
 
 			resp, err := client.Get(context.Background(), key)
