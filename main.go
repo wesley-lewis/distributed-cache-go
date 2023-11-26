@@ -2,8 +2,9 @@ package main
 
 import (
 	"context"
-	"flag"
 	"log"
+	"fmt"
+	"flag"
 	"time"
 
 	"github.com/wesley-lewis/distributed-cache/cache"
@@ -30,21 +31,21 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		for i:=0; i < 10; i++{
-			SendCommand(client)
-			time.Sleep(time.Millisecond * 200)
+		err = client.Set(context.Background(), []byte("foo"), []byte("bar"), 0)
+		if err != nil {
+			log.Fatal(err)
 		}
+
+		time.Sleep(time.Second * 2)
+		value, err := client.Get(context.Background(), []byte("foo"))
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("Value: %s\n", value)
+		
 		client.Close()
-		time.Sleep(time.Second * 1)
 	}()
 	server := NewServer(opts, cache.New())
 	server.Start()
 }
 
-// Just for testing purposes
-func SendCommand(client *client.Client) {
-	_, err := client.Set(context.Background(), []byte("wes"), []byte("lew"), 10)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
