@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
-	"log"
-	"fmt"
+	"crypto/rand"
 	"flag"
+	"fmt"
+	"io"
+	"log"
 	"time"
 
 	"github.com/wesley-lewis/distributed-cache/cache"
@@ -25,35 +27,50 @@ func main() {
 		LeaderAddr: *leaderAddr,
 	}
 
-	go func() {
-		time.Sleep(time.Second * 2)
-		client, err := client.New(":3000", client.Options{})
-		if err != nil {
-			panic(err)
-		}
-
-		resp, err := client.Get(context.Background(), []byte("foo"))
-		if err != nil {
-			log.Printf("Error: %s", err)
-		}
-
-		fmt.Println(resp)
-
-		err = client.Set(context.Background(), []byte("foo"), []byte("bar"), 0)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		time.Sleep(time.Second * 2)
-		value, err := client.Get(context.Background(), []byte("foo"))
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Printf("Value: %s\n", value)
-		
-		client.Close()
-	}()
+	go multipleClients()
 	server := NewServer(opts, cache.New())
 	server.Start()
 }
 
+func randomBytes(n int) []byte {
+	buf := make([]byte, n)
+	io.ReadFull(rand.Reader, buf)
+	return buf
+}
+
+func multipleClients() {
+	time.Sleep(time.Second * 2)
+	for i := 0; i < 1000; i++ {
+		go func() {
+			client, err := client.New(":3000", client.Options{})
+			if err != nil {
+				panic(err)
+			}
+
+			var (
+				key = randomBytes(10)
+				val = randomBytes(10)
+			)
+
+			resp, err := client.Get(context.Background(), key)
+			if err != nil {
+				log.Printf("Error: %s", err)
+			}
+
+			fmt.Println(resp)
+
+			err = client.Set(context.Background(), key, val, 0)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			value, err := client.Get(context.Background(), key)
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Printf("Value: %s\n", value)
+
+			client.Close()
+		}()
+	}
+}
