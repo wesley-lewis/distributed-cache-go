@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
@@ -8,6 +10,7 @@ import (
 	"time"
 
 	"github.com/wesley-lewis/distributed-cache/cache"
+	"github.com/wesley-lewis/distributed-cache/client"
 	"github.com/wesley-lewis/distributed-cache/proto"
 )
 
@@ -20,6 +23,8 @@ type ServerOpts struct {
 type Server struct {
 	ServerOpts
 
+	members map[*client.Client]struct{}
+
 	cache cache.Cacher
 }
 
@@ -27,7 +32,7 @@ func NewServer(opts ServerOpts, c cache.Cacher ) *Server {
 	return &Server {
 		ServerOpts: opts,
 		cache: c,
-		// TODO: only allocate this when we are the leader
+		members: make(map[*client.Client]struct{}),
 	}
 }
 
@@ -65,6 +70,9 @@ func(s *Server) dialLeader() error{
 		return fmt.Errorf("Failed to dial leader [%s]", s.LeaderAddr)
 	}
 	log.Println("connected to leader:",s.LeaderAddr)
+
+	binary.Write(conn, binary.LittleEndian, proto.CmdJoin)
+
 	s.handleConn(conn)
 	return nil
 }
@@ -100,11 +108,31 @@ func(s *Server) handleCommand(conn net.Conn, cmd any) {
 		
 		case *proto.CommandGet:
 			s.handleGetCommand(conn, v)
+		case *proto.CommandJoin:
+			s.handleJoinCommand(conn)
 	}
+}
+
+func(s *Server) handleJoinCommand(conn net.Conn) error{
+	fmt.Println("Member just joined", conn.RemoteAddr())
+
+	c := client.NewFromConn(conn)
+	s.members[c] = struct{}{}
+
+	return nil
 }
 
 func(s *Server) handleSetCommand(conn net.Conn, cmd *proto.CommandSet) error {
 	log.Printf("SET %s to %s\n", cmd.Key, cmd.Value)
+
+	go func() {
+		for member := range s.members {
+			err := member.Set(context.TODO(), cmd.Key, cmd.Value, cmd.TTL)
+			if err != nil {
+				log.Println("forward to member error:", err)
+			}
+		}
+	}()
 
 	resp := &proto.ResponseSet{
 			// Status: proto.StatusError,

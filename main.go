@@ -25,24 +25,28 @@ func main() {
 		LeaderAddr: *leaderAddr,
 	}
 
+	go func() {
+		time.Sleep(time.Second * 10)
+		if opts.IsLeader {
+			multipleClients()
+		}
+	}()
 	// go multipleClients()
 	server := NewServer(opts, cache.New())
 	server.Start()
 }
 
 func multipleClients() {
-	time.Sleep(time.Second * 2)
 	for i := 0; i < 1000; i++ {
-		tmp := i
-		go func() {
+		go func(i int) {
 			client, err := client.New(":3000", client.Options{})
 			if err != nil {
 				panic(err)
 			}
 
 			var (
-				key = []byte(fmt.Sprintf("key_%d", tmp))
-				val = []byte(fmt.Sprintf("value_%d",tmp))
+				key = []byte(fmt.Sprintf("key_%d", i))
+				val = []byte(fmt.Sprintf("value_%d",i))
 			)
 
 			resp, err := client.Get(context.Background(), key)
@@ -64,7 +68,7 @@ func multipleClients() {
 			fmt.Printf("Value: %s\n", value)
 
 			client.Close()
-		}()
+		}(i)
 	}
 }
-
+// 1:13:47
