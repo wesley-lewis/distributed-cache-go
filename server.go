@@ -12,6 +12,7 @@ import (
 	"github.com/wesley-lewis/distributed-cache/cache"
 	"github.com/wesley-lewis/distributed-cache/client"
 	"github.com/wesley-lewis/distributed-cache/proto"
+	"go.uber.org/zap"
 )
 
 type ServerOpts struct {
@@ -26,13 +27,17 @@ type Server struct {
 	members map[*client.Client]struct{}
 
 	cache cache.Cacher
+	logger *zap.SugaredLogger
 }
 
 func NewServer(opts ServerOpts, c cache.Cacher ) *Server {
+	l,_ := zap.NewProduction()
+
 	return &Server {
 		ServerOpts: opts,
 		cache: c,
 		members: make(map[*client.Client]struct{}),
+		logger: l.Sugar(),
 	}
 }
 
@@ -52,7 +57,7 @@ func(s *Server) Start() error {
 		
 	}
 	
-	log.Printf("Server starting on port [%s]\n", s.ListenAddr)
+	s.logger.Infow("Server starting", "addr", s.ListenAddr, "leader", s.LeaderAddr)
 
 	for {
 		conn, err := ln.Accept()
@@ -69,7 +74,7 @@ func(s *Server) dialLeader() error{
 	if err != nil {
 		return fmt.Errorf("Failed to dial leader [%s]", s.LeaderAddr)
 	}
-	log.Println("connected to leader:",s.LeaderAddr)
+	s.logger.Infow("connected to leader", "addr",s.LeaderAddr)
 
 	binary.Write(conn, binary.LittleEndian, proto.CmdJoin)
 

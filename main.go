@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/wesley-lewis/distributed-cache/cache"
 	"github.com/wesley-lewis/distributed-cache/client"
@@ -25,13 +24,12 @@ func main() {
 		LeaderAddr: *leaderAddr,
 	}
 
-	go func() {
-		time.Sleep(time.Second * 10)
-		if opts.IsLeader {
-			multipleClients()
-		}
-	}()
-	// go multipleClients()
+	// go func() {
+	// 	time.Sleep(time.Second * 10)
+	// 	if opts.IsLeader {
+	// 		multipleClients()
+	// 	}
+	// }()
 	server := NewServer(opts, cache.New())
 	server.Start()
 }
@@ -71,4 +69,3 @@ func multipleClients() {
 		}(i)
 	}
 }
-// 1:13:47
