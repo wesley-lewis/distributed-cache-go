@@ -48,32 +48,26 @@ func main() {
 		ID: cfg.LocalID,
 		Address: raft.ServerAddress("localhost:4000"),
 	}
-	
-	serverConfig := raft.Configuration{
-		Servers: []raft.Server{server},
+	server2 := raft.Server{
+		Suffrage: raft.Voter,
+		ID: "node_2",
+		Address: raft.ServerAddress("localhost:4001"),
 	}
-	
-	// err = raft.BootstrapCluster(cfg, logStore, logStore, snapShotStore, tr, serverConfig)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	serverConfig := raft.Configuration{
+		Servers: []raft.Server{server, server2},
+	}
 
 	r, err := raft.NewRaft(cfg, fsm, logStore, stableStore, snapShotStore, tr)	
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	if rerr := r.BootstrapCluster(serverConfig); rerr.Error() != nil {
 		log.Fatal(rerr.Error())
 	}
 
 	fmt.Println(r.GetConfiguration().Configuration())
 	select {
-	}
-}
-
-func makeServer() {
-	for i := 0; i < 10; i++ {
-
 	}
 }
 
