@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net"
 	"os"
 	"time"
 
@@ -12,42 +11,69 @@ import (
 	"github.com/wesley-lewis/distributed-cache/client"
 )
 
-type Server struct {
-	raft *raft.Raft
-}
+
 
 func main() {
 	var (
 		cfg				= raft.DefaultConfig()
 		fsm				= &raft.MockFSM{}
-		logStore		= &raft.InmemStore{}
-		snapShotStore	= raft.NewInmemSnapshotStore()
+		logStore		= raft.NewInmemStore()
+		// snapShotStore	= raft.NewInmemSnapshotStore()
 		stableStore		= raft.NewInmemStore()
 		timeout			= time.Duration(time.Second * 5)
 	)
 	
-	cfg.LocalID = "ID"
-	ips, err := net.LookupIP("localhost")
+	snapShotStore, err := raft.NewFileSnapshotStore(".log", 3, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if len(ips) == 0 {
-		log.Fatalf("localhost did not resolve to any IPs")
-	}
-	addr := &net.TCPAddr{IP: ips[0], Port: 4000}
 
-	tr, err := raft.NewTCPTransport(":4000", addr, 10, timeout, os.Stdout)
+	cfg.LocalID = "ID"
+	// ips, err := net.LookupIP("localhost")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// if len(ips) == 0 {
+	// 	log.Fatalf("localhost did not resolve to any IPs")
+	// }
+	// addr := &net.TCPAddr{IP: ips[0], Port: 4000}
+
+	tr, err := raft.NewTCPTransport("localhost:4000", nil, 10, timeout, os.Stdout)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	server := raft.Server{
+		Suffrage: raft.Voter,
+		ID: cfg.LocalID,
+		Address: raft.ServerAddress("localhost:4000"),
+	}
+	
+	serverConfig := raft.Configuration{
+		Servers: []raft.Server{server},
+	}
+	
+	// err = raft.BootstrapCluster(cfg, logStore, logStore, snapShotStore, tr, serverConfig)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
 	r, err := raft.NewRaft(cfg, fsm, logStore, stableStore, snapShotStore, tr)	
 	if err != nil {
 		log.Fatal(err)
 	}
+	if rerr := r.BootstrapCluster(serverConfig); rerr.Error() != nil {
+		log.Fatal(rerr.Error())
+	}
 
-	fmt.Printf("%+v", r)
+	fmt.Println(r.GetConfiguration().Configuration())
 	select {
+	}
+}
+
+func makeServer() {
+	for i := 0; i < 10; i++ {
+
 	}
 }
 
